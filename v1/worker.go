@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	
+
 	"github.com/RichardKnop/machinery/v1/backends/amqp"
 	"github.com/RichardKnop/machinery/v1/brokers/errs"
 	"github.com/RichardKnop/machinery/v1/log"
@@ -27,7 +27,7 @@ type Worker struct {
 	Concurrency       int
 	Queue             string
 	errorHandler      func(err error)
-	preTaskHandler    func(*tasks.Signature)
+	preTaskHandler    func(*tasks.Signature) (bool, error)
 	postTaskHandler   func(*tasks.Signature)
 	preConsumeHandler func(*Worker) bool
 }
@@ -170,7 +170,14 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 
 	//Run handler before the task is called
 	if worker.preTaskHandler != nil {
-		worker.preTaskHandler(signature)
+		skip, err := worker.preTaskHandler(signature)
+		if err != nil {
+			return worker.taskFailed(signature, err)
+		}
+
+		if skip {
+			return worker.taskSucceeded(signature, nil)
+		}
 	}
 
 	//Defer run handler for the end of the task
@@ -401,7 +408,7 @@ func (worker *Worker) SetErrorHandler(handler func(err error)) {
 }
 
 //SetPreTaskHandler sets a custom handler func before a job is started
-func (worker *Worker) SetPreTaskHandler(handler func(*tasks.Signature)) {
+func (worker *Worker) SetPreTaskHandler(handler func(*tasks.Signature) (bool, error)) {
 	worker.preTaskHandler = handler
 }
 

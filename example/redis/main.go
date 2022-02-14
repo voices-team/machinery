@@ -123,8 +123,9 @@ func worker() error {
 		log.ERROR.Println("I am an error handler:", err)
 	}
 
-	pretaskhandler := func(signature *tasks.Signature) {
+	pretaskhandler := func(signature *tasks.Signature) (bool, error) {
 		log.INFO.Println("I am a start of task handler for:", signature.Name)
+		return false, nil
 	}
 
 	posttaskhandler := func(signature *tasks.Signature) {
